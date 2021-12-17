@@ -181,6 +181,10 @@ type clientV2 struct {
 	AuthState  *auth.State
 }
 
+func NewClientV2(id int64, conn net.Conn, nsqd *NSQD) *clientV2 {
+	return newClientV2(id, conn, nsqd)
+}
+
 func newClientV2(id int64, conn net.Conn, nsqd *NSQD) *clientV2 {
 	var identifier string
 	if conn != nil {
