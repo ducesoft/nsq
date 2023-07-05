@@ -82,9 +82,10 @@ func NewChannel(topicName string, channelName string, nsqd *NSQD,
 		clients:        make(map[int64]Consumer),
 		deleteCallback: deleteCallback,
 		nsqd:           nsqd,
+		ephemeral:      strings.HasSuffix(channelName, "#ephemeral"),
 	}
-	// create mem-queue only if size > 0 (do not use unbuffered chan)
-	if nsqd.getOpts().MemQueueSize > 0 {
+	// avoid mem-queue if size == 0 for more consistent ordering
+	if nsqd.getOpts().MemQueueSize > 0 || c.ephemeral {
 		c.memoryMsgChan = make(chan *Message, nsqd.getOpts().MemQueueSize)
 	}
 	if len(nsqd.getOpts().E2EProcessingLatencyPercentiles) > 0 {
@@ -96,8 +97,7 @@ func NewChannel(topicName string, channelName string, nsqd *NSQD,
 
 	c.initPQ()
 
-	if strings.HasSuffix(channelName, "#ephemeral") {
-		c.ephemeral = true
+	if c.ephemeral {
 		c.backend = newDummyBackendQueue()
 	} else {
 		dqLogf := func(level diskqueue.LogLevel, f string, args ...interface{}) {
@@ -363,8 +363,8 @@ func (c *Channel) FinishMessage(clientID int64, id MessageID) error {
 //
 // `timeoutMs` == 0 - requeue a message immediately
 // `timeoutMs`  > 0 - asynchronously wait for the specified timeout
-//     and requeue a message (aka "deferred requeue")
 //
+//	and requeue a message (aka "deferred requeue")
 func (c *Channel) RequeueMessage(clientID int64, id MessageID, timeout time.Duration) error {
 	// remove from inflight first
 	msg, err := c.popInFlightMessage(clientID, id)
@@ -436,9 +436,10 @@ func (c *Channel) RemoveClient(clientID int64) {
 
 	c.Lock()
 	delete(c.clients, clientID)
+	numClients := len(c.clients)
 	c.Unlock()
 
-	if len(c.clients) == 0 && c.ephemeral == true {
+	if numClients == 0 && c.ephemeral {
 		go c.deleter.Do(func() { c.deleteCallback(c) })
 	}
 }

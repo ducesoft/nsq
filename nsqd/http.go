@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
 	"os"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -85,6 +86,7 @@ func newHTTPServer(nsqd *NSQD, tlsEnabled bool, tlsRequired bool) *httpServer {
 	router.Handler("GET", "/debug/pprof/goroutine", pprof.Handler("goroutine"))
 	router.Handler("GET", "/debug/pprof/block", pprof.Handler("block"))
 	router.Handle("PUT", "/debug/setblockrate", http_api.Decorate(setBlockRateHandler, log, http_api.PlainText))
+	router.Handle("POST", "/debug/freememory", http_api.Decorate(freeMemory, log, http_api.PlainText))
 	router.Handler("GET", "/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 
 	return s
@@ -96,6 +98,11 @@ func setBlockRateHandler(w http.ResponseWriter, req *http.Request, ps httprouter
 		return nil, http_api.Err{http.StatusBadRequest, fmt.Sprintf("invalid block rate : %s", err.Error())}
 	}
 	runtime.SetBlockProfileRate(rate)
+	return nil, nil
+}
+
+func freeMemory(w http.ResponseWriter, req *http.Request, ps httprouter.Params) (interface{}, error) {
+	debug.FreeOSMemory()
 	return nil, nil
 }
 
@@ -125,20 +132,37 @@ func (s *httpServer) doInfo(w http.ResponseWriter, req *http.Request, ps httprou
 	if err != nil {
 		return nil, http_api.Err{500, err.Error()}
 	}
+	tcpPort := -1 // in case of unix socket
+	if s.nsqd.RealTCPAddr().Network() == "tcp" {
+		tcpPort = s.nsqd.RealTCPAddr().(*net.TCPAddr).Port
+	}
+	httpPort := -1 // in case of unix socket
+	if s.nsqd.RealHTTPAddr().Network() == "tcp" {
+		httpPort = s.nsqd.RealHTTPAddr().(*net.TCPAddr).Port
+	}
+
 	return struct {
-		Version          string `json:"version"`
-		BroadcastAddress string `json:"broadcast_address"`
-		Hostname         string `json:"hostname"`
-		HTTPPort         int    `json:"http_port"`
-		TCPPort          int    `json:"tcp_port"`
-		StartTime        int64  `json:"start_time"`
+		Version              string        `json:"version"`
+		BroadcastAddress     string        `json:"broadcast_address"`
+		Hostname             string        `json:"hostname"`
+		HTTPPort             int           `json:"http_port"`
+		TCPPort              int           `json:"tcp_port"`
+		StartTime            int64         `json:"start_time"`
+		MaxHeartBeatInterval time.Duration `json:"max_heartbeat_interval"`
+		MaxOutBufferSize     int64         `json:"max_output_buffer_size"`
+		MaxOutBufferTimeout  time.Duration `json:"max_output_buffer_timeout"`
+		MaxDeflateLevel      int           `json:"max_deflate_level"`
 	}{
-		Version:          version.Binary,
-		BroadcastAddress: s.nsqd.getOpts().BroadcastAddress,
-		Hostname:         hostname,
-		TCPPort:          s.nsqd.RealTCPAddr().Port,
-		HTTPPort:         s.nsqd.RealHTTPAddr().Port,
-		StartTime:        s.nsqd.GetStartTime().Unix(),
+		Version:              version.Binary,
+		BroadcastAddress:     s.nsqd.getOpts().BroadcastAddress,
+		Hostname:             hostname,
+		TCPPort:              tcpPort,
+		HTTPPort:             httpPort,
+		StartTime:            s.nsqd.GetStartTime().Unix(),
+		MaxHeartBeatInterval: s.nsqd.getOpts().MaxHeartbeatInterval,
+		MaxOutBufferSize:     s.nsqd.getOpts().MaxOutputBufferSize,
+		MaxOutBufferTimeout:  s.nsqd.getOpts().MaxOutputBufferTimeout,
+		MaxDeflateLevel:      s.nsqd.getOpts().MaxDeflateLevel,
 	}, nil
 }
 
@@ -193,7 +217,7 @@ func (s *httpServer) doPUB(w http.ResponseWriter, req *http.Request, ps httprout
 	// add 1 so that it's greater than our max when we test for it
 	// (LimitReader returns a "fake" EOF)
 	readMax := s.nsqd.getOpts().MaxMsgSize + 1
-	body, err := ioutil.ReadAll(io.LimitReader(req.Body, readMax))
+	body, err := io.ReadAll(io.LimitReader(req.Body, readMax))
 	if err != nil {
 		return nil, http_api.Err{500, "INTERNAL_ERROR"}
 	}
@@ -604,7 +628,7 @@ func (s *httpServer) doConfig(w http.ResponseWriter, req *http.Request, ps httpr
 		// add 1 so that it's greater than our max when we test for it
 		// (LimitReader returns a "fake" EOF)
 		readMax := s.nsqd.getOpts().MaxMsgSize + 1
-		body, err := ioutil.ReadAll(io.LimitReader(req.Body, readMax))
+		body, err := io.ReadAll(io.LimitReader(req.Body, readMax))
 		if err != nil {
 			return nil, http_api.Err{500, "INTERNAL_ERROR"}
 		}

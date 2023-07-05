@@ -2,7 +2,6 @@ package nsqadmin
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -78,12 +77,12 @@ func TestTLSHTTPClient(t *testing.T) {
 	test.Equal(t, resp.StatusCode < 500, true)
 }
 
-func mustStartNSQD(opts *nsqd.Options) (*net.TCPAddr, *net.TCPAddr, *nsqd.NSQD) {
+func mustStartNSQD(opts *nsqd.Options) (net.Addr, net.Addr, *nsqd.NSQD) {
 	opts.TCPAddress = "127.0.0.1:0"
 	opts.HTTPAddress = "127.0.0.1:0"
 	opts.HTTPSAddress = "127.0.0.1:0"
 	if opts.DataPath == "" {
-		tmpDir, err := ioutil.TempDir("", "nsq-test-")
+		tmpDir, err := os.MkdirTemp("", "nsq-test-")
 		if err != nil {
 			panic(err)
 		}

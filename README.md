@@ -23,10 +23,10 @@ Operationally, **NSQ** is easy to configure and deploy (all parameters are speci
 line and compiled binaries have no runtime dependencies). For maximum flexibility, it is agnostic to
 data format (messages can be JSON, MsgPack, Protocol Buffers, or anything else). Official Go and
 Python libraries are available out of the box (as well as many other [client
-libraries][client_libraries]) and, if you're interested in building your own, there's a [protocol
+libraries][client_libraries]), and if you're interested in building your own, there's a [protocol
 spec][protocol].
 
-We publish [binary releases][installing] for linux, darwin, freebsd and windows as well as an official [Docker image][docker_deployment].
+We publish [binary releases][installing] for Linux, Darwin, FreeBSD and Windows, as well as an official [Docker image][docker_deployment].
 
 NOTE: master is our *development* branch and may not be stable at all times.
 
@@ -69,7 +69,8 @@ NOTE: master is our *development* branch and may not be stable at all times.
 
 <a href="https://fandom.wikia.com/"><img src="https://nsq.io/static/img/fandom_logo.svg" width="100" align="middle"/></a>&nbsp;&nbsp;
 <a href="https://gitee.com/"><img src="https://nsq.io/static/img/gitee_logo.svg" width="140" align="middle"/></a>&nbsp;&nbsp;
-<a href="https://bytedance.com/"><img src="https://nsq.io/static/img/bytedance_logo.png" width="140" align="middle"/></a><br/>
+<a href="https://bytedance.com/"><img src="https://nsq.io/static/img/bytedance_logo.png" width="140" align="middle"/></a>&nbsp;&nbsp;
+<a href="https://www.tokopedia.com/"><img src="https://nsq.io/static/img/tokopedia_logo.svg" width="145" align="middle"/></a><br/>
 
 ## Code of Conduct
 
