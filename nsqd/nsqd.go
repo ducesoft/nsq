@@ -149,9 +149,11 @@ func New(opts *Options) (*NSQD, error) {
 	n.logf(LOG_INFO, "ID: %d", opts.ID)
 
 	n.tcpServer = &tcpServer{nsqd: n}
-	n.tcpListener, err = net.Listen(util.TypeOfAddr(opts.TCPAddress), opts.TCPAddress)
-	if err != nil {
-		return nil, fmt.Errorf("listen (%s) failed - %s", opts.TCPAddress, err)
+	if opts.TCPAddress != "" {
+		n.tcpListener, err = net.Listen(util.TypeOfAddr(opts.TCPAddress), opts.TCPAddress)
+		if err != nil {
+			return nil, fmt.Errorf("listen (%s) failed - %s", opts.TCPAddress, err)
+		}
 	}
 	if opts.HTTPAddress != "" {
 		n.httpListener, err = net.Listen(util.TypeOfAddr(opts.HTTPAddress), opts.HTTPAddress)
@@ -266,9 +268,11 @@ func (n *NSQD) Main() error {
 		})
 	}
 
-	n.waitGroup.Wrap(func() {
-		exitFunc(protocol.TCPServer(n.tcpListener, n.tcpServer, n.logf))
-	})
+	if n.tcpListener != nil {
+		n.waitGroup.Wrap(func() {
+			exitFunc(protocol.TCPServer(n.tcpListener, n.tcpServer, n.logf))
+		})
+	}
 	if n.httpListener != nil {
 		httpServer := newHTTPServer(n, false, n.getOpts().TLSRequired == TLSRequired)
 		n.waitGroup.Wrap(func() {
